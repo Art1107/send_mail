@@ -2,83 +2,157 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"send_mail/adapters"
 	"send_mail/config"
-	"send_mail/domain"
+	"send_mail/internal/adapters/lark"
+	"send_mail/internal/adapters/mysql"
+	"send_mail/internal/core"
+	"send_mail/internal/domain"
+	"send_mail/pkg/logger"
+	"send_mail/pkg/verify"
 )
 
-type App struct {
-	config   *config.Config
-	notifier *adapters.LarkNotifier
-}
-
-func NewApp() *App {
+func main() {
 	cfg := config.NewConfig()
-	return &App{
-		config:   cfg,
-		notifier: adapters.NewLarkNotifier(cfg.LarkWebhookURL),
+	logger, err := logger.NewLogger(cfg.LogFile)
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+
+	logger.Info("Public Key Detail",
+		"key_length", len(cfg.SendgridPublicKey),
+		"has_key", cfg.SendgridPublicKey != "",
+		"raw_key", cfg.SendgridPublicKey)
+
+	logger.Info("Config loaded",
+		"public_key_configured", cfg.SendgridPublicKey != "")
+
+	// Initialize repository
+	repo, err := mysql.NewRepository(cfg.DatabaseDSN)
+	if err != nil {
+		logger.Error("Failed to initialize repository", "error", err)
+		log.Fatal(err)
+	}
+
+	// Initialize notifier
+	notifier := lark.NewNotifier(cfg.LarkWebhookURL)
+
+	// Initialize service
+	service := core.NewEventService(repo, notifier, logger)
+
+	// Setup HTTP handler
+	http.HandleFunc("/webhook", makeWebhookHandler(service, logger, cfg))
+	http.HandleFunc("/test", makeTestHandler(logger))
+
+	logger.Info("Server starting", "port", cfg.ServerPort)
+	if err := http.ListenAndServe(cfg.ServerPort, nil); err != nil {
+		logger.Error("Server failed to start", "error", err)
+		log.Fatal(err)
 	}
 }
 
-func (app *App) handleWebhook(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		log.Printf("❌ Invalid method: %s", r.Method)
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func readBody(r *http.Request) ([]byte, error) {
 	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("❌ Failed to read body: %v", err)
-		http.Error(w, "Cannot read body", http.StatusInternalServerError)
-		return
-	}
+	defer r.Body.Close()
+	return bodyBytes, err
+}
 
-	var events []domain.SendgridEvent
-	if err := json.Unmarshal(bodyBytes, &events); err != nil {
-		log.Printf("❌ Invalid JSON: %v", err)
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
+func makeWebhookHandler(service *core.EventService, logger *logger.Logger, cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
-	for _, event := range events {
-		log.Printf("📨 Event: %s | Email: %s | Status: %s | Time: %d",
-			event.Event,
-			event.Email,
-			event.Status,
-			event.Timestamp,
-		)
+		// ดึง signature และ timestamp จาก header
+		signature := r.Header.Get("X-Twilio-Email-Event-Webhook-Signature")
+		timestamp := r.Header.Get("X-Twilio-Email-Event-Webhook-Timestamp")
 
-		if event.Event == "spamreport" || event.Event == "dropped" || event.Event == "bounce" {
-			log.Printf("⚠️ Important event detected: %s", event.Event)
-			if err := app.notifier.Notify(event); err != nil {
-				log.Printf("❌ Failed to send notification: %v", err)
-			} else {
-				log.Printf("✅ Notification sent successfully")
+		if cfg.SendgridPublicKey != "" {
+			if signature == "" || timestamp == "" {
+				logger.Error("Missing signature headers")
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
 			}
 		}
-	}
 
-	w.WriteHeader(http.StatusOK)
+		// อ่าน body
+		bodyBytes, err := readBody(r)
+		if err != nil {
+			http.Error(w, "Cannot read body", http.StatusInternalServerError)
+			return
+		}
+
+		// Log headers ที่เกี่ยวข้องกับ Signature
+		logger.Info("Signature Verification Headers",
+			"signature", signature,
+			"timestamp", timestamp)
+
+		// ตรวจสอบ signature ถ้ามีการตั้งค่า public key
+		if cfg.SendgridPublicKey != "" {
+			logger.Info("Starting signature verification",
+				"public_key_configured", true)
+
+			valid, err := verify.VerifySignature(bodyBytes, signature, timestamp, cfg.SendgridPublicKey)
+			if err != nil {
+				logger.Error("Signature verification failed",
+					"error", err,
+					"signature", signature,
+					"timestamp", timestamp)
+				http.Error(w, "Invalid signature", http.StatusUnauthorized)
+				return
+			}
+			if !valid {
+				logger.Error("Invalid signature detected",
+					"signature", signature,
+					"timestamp", timestamp)
+				http.Error(w, "Invalid signature", http.StatusUnauthorized)
+				return
+			}
+
+			logger.Info("Signature verification successful",
+				"signature_valid", true)
+		} else {
+			logger.Warn("Signature verification skipped - no public key configured")
+		}
+
+		var events []domain.SendgridEvent
+		if err := json.Unmarshal(bodyBytes, &events); err != nil {
+			logger.Error("Invalid JSON", "error", err)
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		for _, event := range events {
+			if err := service.HandleEvent(event); err != nil {
+				logger.Error("Event handling failed",
+					"event", event.Event,
+					"email", event.Email,
+					"error", err)
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
-func main() {
-	f, err := os.OpenFile("sendgrid_events.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer f.Close()
-	log.SetOutput(f)
+func makeTestHandler(logger *logger.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger.Info("Received Headers:")
+		for name, values := range r.Header {
+			logger.Info(fmt.Sprintf("%s: %s", name, values))
+		}
 
-	app := NewApp()
-	http.HandleFunc("/webhook", app.handleWebhook)
+		bodyBytes, err := readBody(r)
+		if err != nil {
+			logger.Error("Cannot read body", "error", err)
+			return
+		}
+		logger.Info("Received Body:", "body", string(bodyBytes))
 
-	log.Println("🚀 Server started at", app.config.ServerPort)
-	if err := http.ListenAndServe(app.config.ServerPort, nil); err != nil {
-		log.Fatal(err)
+		w.WriteHeader(http.StatusOK)
 	}
 }
