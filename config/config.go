@@ -1,64 +1,61 @@
 package config
 
 import (
-    "log"
-    "os"
+	"log"
+	"os"
+	"path/filepath"
 
-    "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
-    ServerPort        string
-    LarkWebhookURL    string
-    LogFile           string
-    SendgridPublicKey string
+	ServerPort        string
+	LarkWebhookURL    string
+	LogFile           string
+	SendgridPublicKey string
 }
 
-var defaultConfig = map[string]string{
-    "SERVER_PORT":      ":8080",
-    "LARK_WEBHOOK_URL": "https://open.larksuite.com/open-apis/bot/v2/hook/662a59e9-d3b5-41db-81c0-911e083525d5",
-    "LOG_FILE":         "sendgrid_events.log",
-}
+const (
+	DefaultServerPort = ":8080"
+	DefaultLogFile    = "sendgrid_events.log"
+	DefaultWebhookURL = "https://open.larksuite.com/open-apis/bot/v2/hook/662a59e9-d3b5-41db-81c0-911e083525d5"
+)
 
 func init() {
-	locations := []string{
-		".env",
-		"../.env",
-		"../../.env",
-	}
+	loadEnvFile()
+}
 
-	var loaded bool
-	for _, loc := range locations {
-		if err := godotenv.Load(loc); err == nil {
-			loaded = true
+func loadEnvFile() {
+	envLocations := []string{".env", "../.env", "../../.env"}
+
+	for _, loc := range envLocations {
+		if err := godotenv.Load(filepath.Clean(loc)); err == nil {
 			log.Printf("Loaded .env from: %s", loc)
-			break
+			return
 		}
 	}
 
-	if !loaded {
-		log.Printf("Warning: Could not load .env file from any location")
-	}
+	log.Printf("Warning: Could not load .env file from any location")
 }
 
 func NewConfig() *Config {
-    publicKey := os.Getenv("SENDGRID_PUBLIC_KEY")
-    log.Printf("Debug: SENDGRID_PUBLIC_KEY length: %d", len(publicKey))
-    log.Printf("Debug: SENDGRID_PUBLIC_KEY first chars: %s", publicKey[:min(len(publicKey), 20)])
+	publicKey := os.Getenv("SENDGRID_PUBLIC_KEY")
+	logPublicKeyInfo(publicKey)
 
-    return &Config{
-        ServerPort:        getEnvOrDefault("SERVER_PORT", defaultConfig["SERVER_PORT"]),
-        LarkWebhookURL:    getEnvOrDefault("LARK_WEBHOOK_URL", defaultConfig["LARK_WEBHOOK_URL"]),
-        LogFile:           getEnvOrDefault("LOG_FILE", "sendgrid_events.log"),
-        SendgridPublicKey: publicKey,
-    }
+	return &Config{
+		ServerPort:        getEnvOrDefault("SERVER_PORT", DefaultServerPort),
+		LarkWebhookURL:    getEnvOrDefault("LARK_WEBHOOK_URL", DefaultWebhookURL),
+		LogFile:           getEnvOrDefault("LOG_FILE", DefaultLogFile),
+		SendgridPublicKey: publicKey,
+	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
+func logPublicKeyInfo(key string) {
+	log.Printf("Debug: SENDGRID_PUBLIC_KEY length: %d", len(key))
+	if len(key) > 0 {
+		maxLen := min(len(key), 20)
+		log.Printf("Debug: SENDGRID_PUBLIC_KEY first chars: %s", key[:maxLen])
 	}
-	return b
 }
 
 func getEnvOrDefault(key, defaultValue string) string {
@@ -66,4 +63,11 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
