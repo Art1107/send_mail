@@ -1,0 +1,8 @@
+2025/06/12 23:58:03 2025-06-12 23:58:03 [INFO] Signature Verification Headers signature=MEUCIHei9QU7yibWzb+KNyiEeWwjUlepwnjj2BaqrJ5X23udAiEA27J57fmkStAFtfTahudNkVZxpbUVVIn0fMU2y/Qbtzo= timestamp=1749747482
+2025/06/12 23:58:03 2025-06-12 23:58:03 [INFO] Starting signature verification public_key_configured=true
+2025/06/12 23:58:03 2025-06-12 23:58:03 [INFO] Signature verification successful signature_valid=true
+2025/06/12 23:58:03 2025-06-12 23:58:03 [INFO] SendGrid Event event=delivered email=example@test.com timestamp=2025-06-12 23:58:02
+2025/06/12 23:58:03 2025-06-12 23:58:03 [INFO] SendGrid Event event=open email=example@test.com timestamp=2025-06-12 23:58:02
+2025/06/12 23:58:03 2025-06-12 23:58:03 [INFO] SendGrid Event event=click email=example@test.com timestamp=2025-06-12 23:58:02
+2025/06/12 23:58:03 2025-06-12 23:58:03 [INFO] SendGrid Event event=bounce email=example@test.com timestamp=2025-06-12 23:58:02
+2025/06/12 23:58:03 2025-06-12 23:58:03 [INFO] Notification sent event=bounce email=example@test.com

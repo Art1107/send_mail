@@ -6,22 +6,26 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"send_mail/config"
-	"send_mail/internal/adapters/lark"
-	"send_mail/internal/adapters/mysql"
-	"send_mail/internal/core"
-	"send_mail/internal/domain"
-	"send_mail/pkg/logger"
-	"send_mail/pkg/verify"
+	"sendgridtest/config"
+	"sendgridtest/internal/adapters/lark"
+	"sendgridtest/internal/adapters/mysql"
+	"sendgridtest/internal/core"
+	"sendgridtest/internal/domain"
+	"sendgridtest/pkg/logger"
+	"sendgridtest/pkg/verify"
 )
 
 func main() {
+	// สร้าง config
 	cfg := config.NewConfig()
+
+	// สร้าง logger ก่อน
 	logger, err := logger.NewLogger(cfg.LogFile)
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
+	// เพิ่ม logging เพื่อตรวจสอบค่า public key
 	logger.Info("Public Key Detail",
 		"key_length", len(cfg.SendgridPublicKey),
 		"has_key", cfg.SendgridPublicKey != "",
