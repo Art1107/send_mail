@@ -1,43 +1,44 @@
 package main
 
 import (
-    "encoding/json"
-    "fmt"
-    "io"
-    "log"
-    "net/http"
-    "sendgridtest/config"
-    "sendgridtest/internal/adapters/lark"
-    "sendgridtest/internal/core"
-    "sendgridtest/internal/domain"
-    "sendgridtest/pkg/logger"
-    "sendgridtest/pkg/verify"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"sendgridtest/config"
+	"sendgridtest/internal/adapters/lark"
+	"sendgridtest/internal/core"
+	"sendgridtest/internal/domain"
+	"sendgridtest/pkg/logger"
+	"sendgridtest/pkg/verify"
 )
 
 func main() {
-    cfg := config.NewConfig()
+	cfg := config.NewConfig()
 
-    logger, err := logger.NewLogger(cfg.LogFile)
-    if err != nil {
-        log.Fatalf("Failed to initialize logger: %v", err)
-    }
+	logger, err := logger.NewLogger(cfg.LogFile)
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Close() // Add this line to properly close the logger
 
-    logger.Info("Public Key Detail",
-        "key_length", len(cfg.SendgridPublicKey),
-        "has_key", cfg.SendgridPublicKey != "",
-        "raw_key", cfg.SendgridPublicKey)
+	logger.Info("Public Key Detail",
+		"key_length", len(cfg.SendgridPublicKey),
+		"has_key", cfg.SendgridPublicKey != "",
+		"raw_key", cfg.SendgridPublicKey)
 
-    notifier := lark.NewNotifier(cfg.LarkWebhookURL)
-    service := core.NewEventService(notifier, logger)
+	notifier := lark.NewNotifier(cfg.LarkWebhookURL)
+	service := core.NewEventService(notifier, logger)
 
-    http.HandleFunc("/webhook", makeWebhookHandler(service, logger, cfg))
-    http.HandleFunc("/test", makeTestHandler(logger))
+	http.HandleFunc("/webhook", makeWebhookHandler(service, logger, cfg))
+	http.HandleFunc("/test", makeTestHandler(logger))
 
-    logger.Info("Server starting", "port", cfg.ServerPort)
-    if err := http.ListenAndServe(cfg.ServerPort, nil); err != nil {
-        logger.Error("Server failed to start", "error", err)
-        log.Fatal(err)
-    }
+	logger.Info("Server starting", "port", cfg.ServerPort)
+	if err := http.ListenAndServe(cfg.ServerPort, nil); err != nil {
+		logger.Error("Server failed to start", "error", err)
+		log.Fatal(err)
+	}
 }
 
 func readBody(r *http.Request) ([]byte, error) {

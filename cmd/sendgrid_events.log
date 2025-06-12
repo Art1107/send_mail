@@ -1,17 +1,12 @@
-2025/06/13 05:35:18 2025-06-13 05:35:18 [INFO] Public Key Detail key_length=176 has_key=true raw_key=-----BEGIN PUBLIC KEY-----
+2025/06/13 05:55:25 2025-06-13 05:55:25 [INFO] Public Key Detail [key_length=176 has_key=true raw_key=-----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXQV0ollYWiaBnpXc5iT5b0SgYz6jwYz0PzK9rri7Sd8Mwsvex5VQIk5yQnE0oDK2sDUU7z0NbTU96IVUSnJCKA==
------END PUBLIC KEY-----
-2025/06/13 05:35:18 2025-06-13 05:35:18 [INFO] Config loaded public_key_configured=true
-2025/06/13 05:35:18 2025-06-13 05:35:18 [ERROR] Failed to initialize repository error=failed to ping database: dial tcp [::1]:3306: connectex: No connection could be made because the target machine actively refused it.
-2025/06/13 05:41:20 2025-06-13 05:41:20 [INFO] Public Key Detail key_length=176 has_key=true raw_key=-----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXQV0ollYWiaBnpXc5iT5b0SgYz6jwYz0PzK9rri7Sd8Mwsvex5VQIk5yQnE0oDK2sDUU7z0NbTU96IVUSnJCKA==
------END PUBLIC KEY-----
-2025/06/13 05:41:20 2025-06-13 05:41:20 [INFO] Server starting port=:8080
-2025/06/13 05:41:34 2025-06-13 05:41:34 [INFO] Signature Verification Headers signature=MEUCIC3ySQY7AaBZ2uOzMG7+8OXajuQD7igy/7h8C5Otd6NUAiEAthbDn5WcwZ9HlzEN0dx+aGrnps+lKzSrQJBQ7z30F14= timestamp=1749768097
-2025/06/13 05:41:34 2025-06-13 05:41:34 [INFO] Starting signature verification public_key_configured=true
-2025/06/13 05:41:34 2025-06-13 05:41:34 [INFO] Signature verification successful signature_valid=true
-2025/06/13 05:41:34 2025-06-13 05:41:34 [INFO] SendGrid Event event=delivered email=example@test.com timestamp=2025-06-13 05:41:37
-2025/06/13 05:41:34 2025-06-13 05:41:34 [INFO] SendGrid Event event=open email=example@test.com timestamp=2025-06-13 05:41:37
-2025/06/13 05:41:34 2025-06-13 05:41:34 [INFO] SendGrid Event event=click email=example@test.com timestamp=2025-06-13 05:41:37
-2025/06/13 05:41:34 2025-06-13 05:41:34 [INFO] SendGrid Event event=bounce email=example@test.com timestamp=2025-06-13 05:41:37
-2025/06/13 05:41:35 2025-06-13 05:41:35 [INFO] Notification sent event=bounce email=example@test.com
+-----END PUBLIC KEY-----]
+2025/06/13 05:55:25 2025-06-13 05:55:25 [INFO] Server starting [port=:8080]
+2025/06/13 05:55:47 2025-06-13 05:55:47 [INFO] Signature Verification Headers [signature=MEUCIFEcS6c3ze3tmhLlGErF0aC+PebzBXlYRL9EDJRPRXDqAiEAlPy3x29cYzL0c9ss7sF91Db8oTDI5eg9fV6zTZe/lbw= timestamp=1749768950]
+2025/06/13 05:55:47 2025-06-13 05:55:47 [INFO] Starting signature verification [public_key_configured=true]
+2025/06/13 05:55:47 2025-06-13 05:55:47 [INFO] Signature verification successful [signature_valid=true]
+2025/06/13 05:55:47 2025-06-13 05:55:47 [INFO] SendGrid Event [event=delivered email=example@test.com timestamp=2025-06-13 05:55:50]
+2025/06/13 05:55:47 2025-06-13 05:55:47 [INFO] SendGrid Event [event=open email=example@test.com timestamp=2025-06-13 05:55:50]
+2025/06/13 05:55:47 2025-06-13 05:55:47 [INFO] SendGrid Event [event=click email=example@test.com timestamp=2025-06-13 05:55:50]
+2025/06/13 05:55:47 2025-06-13 05:55:47 [INFO] SendGrid Event [event=bounce email=example@test.com timestamp=2025-06-13 05:55:50]
+2025/06/13 05:55:48 2025-06-13 05:55:48 [INFO] Notification sent [event=bounce email=example@test.com]
