@@ -1,61 +1,43 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"sendgridtest/config"
-	"sendgridtest/internal/adapters/lark"
-	"sendgridtest/internal/adapters/mysql"
-	"sendgridtest/internal/core"
-	"sendgridtest/internal/domain"
-	"sendgridtest/pkg/logger"
-	"sendgridtest/pkg/verify"
+    "encoding/json"
+    "fmt"
+    "io"
+    "log"
+    "net/http"
+    "sendgridtest/config"
+    "sendgridtest/internal/adapters/lark"
+    "sendgridtest/internal/core"
+    "sendgridtest/internal/domain"
+    "sendgridtest/pkg/logger"
+    "sendgridtest/pkg/verify"
 )
 
 func main() {
-	// สร้าง config
-	cfg := config.NewConfig()
+    cfg := config.NewConfig()
 
-	// สร้าง logger ก่อน
-	logger, err := logger.NewLogger(cfg.LogFile)
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
+    logger, err := logger.NewLogger(cfg.LogFile)
+    if err != nil {
+        log.Fatalf("Failed to initialize logger: %v", err)
+    }
 
-	// เพิ่ม logging เพื่อตรวจสอบค่า public key
-	logger.Info("Public Key Detail",
-		"key_length", len(cfg.SendgridPublicKey),
-		"has_key", cfg.SendgridPublicKey != "",
-		"raw_key", cfg.SendgridPublicKey)
+    logger.Info("Public Key Detail",
+        "key_length", len(cfg.SendgridPublicKey),
+        "has_key", cfg.SendgridPublicKey != "",
+        "raw_key", cfg.SendgridPublicKey)
 
-	logger.Info("Config loaded",
-		"public_key_configured", cfg.SendgridPublicKey != "")
+    notifier := lark.NewNotifier(cfg.LarkWebhookURL)
+    service := core.NewEventService(notifier, logger)
 
-	// Initialize repository
-	repo, err := mysql.NewRepository(cfg.DatabaseDSN)
-	if err != nil {
-		logger.Error("Failed to initialize repository", "error", err)
-		log.Fatal(err)
-	}
+    http.HandleFunc("/webhook", makeWebhookHandler(service, logger, cfg))
+    http.HandleFunc("/test", makeTestHandler(logger))
 
-	// Initialize notifier
-	notifier := lark.NewNotifier(cfg.LarkWebhookURL)
-
-	// Initialize service
-	service := core.NewEventService(repo, notifier, logger)
-
-	// Setup HTTP handler
-	http.HandleFunc("/webhook", makeWebhookHandler(service, logger, cfg))
-	http.HandleFunc("/test", makeTestHandler(logger))
-
-	logger.Info("Server starting", "port", cfg.ServerPort)
-	if err := http.ListenAndServe(cfg.ServerPort, nil); err != nil {
-		logger.Error("Server failed to start", "error", err)
-		log.Fatal(err)
-	}
+    logger.Info("Server starting", "port", cfg.ServerPort)
+    if err := http.ListenAndServe(cfg.ServerPort, nil); err != nil {
+        logger.Error("Server failed to start", "error", err)
+        log.Fatal(err)
+    }
 }
 
 func readBody(r *http.Request) ([]byte, error) {
@@ -71,7 +53,6 @@ func makeWebhookHandler(service *core.EventService, logger *logger.Logger, cfg *
 			return
 		}
 
-		// ดึง signature และ timestamp จาก header
 		signature := r.Header.Get("X-Twilio-Email-Event-Webhook-Signature")
 		timestamp := r.Header.Get("X-Twilio-Email-Event-Webhook-Timestamp")
 
@@ -83,19 +64,16 @@ func makeWebhookHandler(service *core.EventService, logger *logger.Logger, cfg *
 			}
 		}
 
-		// อ่าน body
 		bodyBytes, err := readBody(r)
 		if err != nil {
 			http.Error(w, "Cannot read body", http.StatusInternalServerError)
 			return
 		}
 
-		// Log headers ที่เกี่ยวข้องกับ Signature
 		logger.Info("Signature Verification Headers",
 			"signature", signature,
 			"timestamp", timestamp)
 
-		// ตรวจสอบ signature ถ้ามีการตั้งค่า public key
 		if cfg.SendgridPublicKey != "" {
 			logger.Info("Starting signature verification",
 				"public_key_configured", true)
