@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -13,6 +15,14 @@ type Config struct {
 	LarkWebhookURL    string
 	LogFile           string
 	SendgridPublicKey string
+}
+
+type LarkConfig struct {
+	WebhookURL     string
+	Timeout        time.Duration
+	MaxRetries     int
+	RateLimit      float64
+	MaxMessageSize int
 }
 
 const (
@@ -50,6 +60,16 @@ func NewConfig() *Config {
 	}
 }
 
+func NewLarkConfig() LarkConfig {
+	return LarkConfig{
+		WebhookURL:     getEnvOrDefault("LARK_WEBHOOK_URL", ""),
+		Timeout:        getDurationOrDefault("LARK_TIMEOUT", 5*time.Second),
+		MaxRetries:     getIntOrDefault("LARK_MAX_RETRIES", 3),
+		RateLimit:      getFloat64OrDefault("LARK_RATE_LIMIT", 10),
+		MaxMessageSize: getIntOrDefault("LARK_MAX_MESSAGE_SIZE", 1000),
+	}
+}
+
 func logPublicKeyInfo(key string) {
 	log.Printf("Debug: SENDGRID_PUBLIC_KEY length: %d", len(key))
 	if len(key) > 0 {
@@ -70,4 +90,25 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func getDurationOrDefault(key string, defaultValue time.Duration) time.Duration {
+	if value, err := time.ParseDuration(os.Getenv(key)); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+func getIntOrDefault(key string, defaultValue int) int {
+	if value, err := strconv.Atoi(os.Getenv(key)); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+func getFloat64OrDefault(key string, defaultValue float64) float64 {
+	if value, err := strconv.ParseFloat(os.Getenv(key), 64); err == nil {
+		return value
+	}
+	return defaultValue
 }
